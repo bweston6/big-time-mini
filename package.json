@@ -28,5 +28,24 @@
             "watchface": true
         }
     },
-    "version": "1.0.0"
+    "version": "1.0.0",
+    "resources": {
+        "media": [
+            {
+                "type": "png",
+                "name": "IMAGE_DAIL",
+                "file": "images/dial.png"
+            },
+            {
+                "type": "png",
+                "name": "IMAGE_HOUR_HAND",
+                "file": "images/hour-hand.png"
+            },
+            {
+                "type": "png",
+                "name": "IMAGE_MINUTE_HAND",
+                "file": "images/minute-hand.png"
+            }
+        ]
+    }
 }

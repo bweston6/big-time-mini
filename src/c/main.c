@@ -1,96 +1,88 @@
 #include <pebble.h>
 
 static Window *s_main_window;
-static TextLayer *s_time_layer;
-static TextLayer *s_date_layer;
+static Layer *s_canvas_layer;
 
-static void update_time() {
-  // Get a tm structure
-  time_t temp = time(NULL);
-  struct tm *tick_time = localtime(&temp);
+static BitmapLayer *s_background_layer;
+static GBitmap *s_background_bitmap;
+static GBitmap *s_hour_hand_bitmap;
+static GBitmap *s_minute_hand_bitmap;
+static GPoint s_hour_hand_ic;
+static GPoint s_minute_hand_ic;
 
-  // Write the current hours and minutes into a buffer
-  static char s_time_buffer[8];
-  strftime(s_time_buffer, sizeof(s_time_buffer), clock_is_24h_style() ?
-                                                    "%H:%M" : "%I:%M", tick_time);
+static void canvas_update_proc(Layer *layer, GContext *ctx) {
+    GRect bounds = layer_get_bounds(layer);
+    GPoint center = grect_center_point(&bounds);
 
-  // Display this time on the TextLayer
-  text_layer_set_text(s_time_layer, s_time_buffer);
+    time_t temp = time(NULL);
+    struct tm *tick_time = localtime(&temp);
 
-  // Write the current date into a buffer
-  static char s_date_buffer[16];
-  strftime(s_date_buffer, sizeof(s_date_buffer), "%a %b %d", tick_time);
+    int32_t minute_angle = TRIG_MAX_ANGLE * tick_time->tm_min / 60;
+    int32_t hour_angle = TRIG_MAX_ANGLE * (tick_time->tm_hour % 12) / 12 + minute_angle / 12;
 
-  // Display the date
-  text_layer_set_text(s_date_layer, s_date_buffer);
+    graphics_context_set_compositing_mode(ctx, GCompOpSet);
+
+    graphics_draw_rotated_bitmap(ctx, s_hour_hand_bitmap, s_hour_hand_ic, hour_angle, center);
+    graphics_draw_rotated_bitmap(ctx, s_minute_hand_bitmap, s_minute_hand_ic, minute_angle, center);
 }
 
 static void tick_handler(struct tm *tick_time, TimeUnits units_changed) {
-  update_time();
+    layer_mark_dirty(s_canvas_layer);
 }
 
 static void main_window_load(Window *window) {
-  // Get information about the Window
-  Layer *window_layer = window_get_root_layer(window);
-  GRect bounds = layer_get_bounds(window_layer);
+    Layer *window_layer = window_get_root_layer(window);
+    GRect bounds = layer_get_unobstructed_bounds(window_layer);
+    GPoint center = grect_center_point(&bounds);
 
-  // Create the time TextLayer
-  s_time_layer = text_layer_create(
-      GRect(0, PBL_IF_ROUND_ELSE(58, 52), bounds.size.w, 50));
-  text_layer_set_background_color(s_time_layer, GColorClear);
-  text_layer_set_text_color(s_time_layer, GColorWhite);
-  text_layer_set_font(s_time_layer, fonts_get_system_font(FONT_KEY_BITHAM_42_BOLD));
-  text_layer_set_text_alignment(s_time_layer, GTextAlignmentCenter);
+    // bitmaps
+    s_background_bitmap = gbitmap_create_with_resource(IMAGE_DIAL);
+    s_hour_hand_bitmap = gbitmap_create_with_resource(IMAGE_HOUR_HAND);
+    s_hour_hand_ic = GPoint(14, 59);
+    s_minute_hand_bitmap = gbitmap_create_with_resource(IMAGE_MINUTE_HAND);
+    s_minute_hand_ic = GPoint(13, 79);
 
-  // Create the date TextLayer
-  s_date_layer = text_layer_create(
-      GRect(0, PBL_IF_ROUND_ELSE(110, 104), bounds.size.w, 30));
-  text_layer_set_background_color(s_date_layer, GColorClear);
-  text_layer_set_text_color(s_date_layer, GColorWhite);
-  text_layer_set_font(s_date_layer, fonts_get_system_font(FONT_KEY_GOTHIC_24_BOLD));
-  text_layer_set_text_alignment(s_date_layer, GTextAlignmentCenter);
+    // layers
+    s_background_layer = bitmap_layer_create(bounds);
+    bitmap_layer_set_bitmap(s_background_layer, s_background_bitmap);
+    bitmap_layer_set_compositing_mode(s_background_layer, GCompOpSet);
+    layer_add_child(window_layer, bitmap_layer_get_layer(s_background_layer));
 
-  // Add layers to the Window
-  layer_add_child(window_layer, text_layer_get_layer(s_time_layer));
-  layer_add_child(window_layer, text_layer_get_layer(s_date_layer));
+    s_canvas_layer = layer_create(bounds);
+    layer_set_update_proc(s_canvas_layer, canvas_update_proc);
+    layer_add_child(window_layer, s_canvas_layer);
+
 }
 
 static void main_window_unload(Window *window) {
-  // Destroy TextLayers
-  text_layer_destroy(s_time_layer);
-  text_layer_destroy(s_date_layer);
+    layer_destroy(s_canvas_layer);
+    bitmap_layer_destroy(s_background_layer);
+    gbitmap_destroy(s_background_bitmap);
+    gbitmap_destroy(s_hour_hand_bitmap);
+    gbitmap_destroy(s_minute_hand_bitmap);
 }
 
 static void init() {
-  // Create main Window element and assign to pointer
-  s_main_window = window_create();
+    s_main_window = window_create();
+    window_set_background_color(s_main_window, GColorFromHEX(DIAL));
 
-  // Set the background color
-  window_set_background_color(s_main_window, GColorBlack);
+    window_set_window_handlers(s_main_window, (WindowHandlers) {
+            .load = main_window_load,
+            .unload = main_window_unload
+            });
 
-  // Set handlers to manage the elements inside the Window
-  window_set_window_handlers(s_main_window, (WindowHandlers) {
-    .load = main_window_load,
-    .unload = main_window_unload
-  });
+    window_stack_push(s_main_window, true);
 
-  // Show the Window on the watch, with animated=true
-  window_stack_push(s_main_window, true);
-
-  // Make sure the time is displayed from the start
-  update_time();
-
-  // Register with TickTimerService
-  tick_timer_service_subscribe(MINUTE_UNIT, tick_handler);
+    tick_timer_service_subscribe(MINUTE_UNIT, tick_handler);
 }
 
 static void deinit() {
-  // Destroy Window
-  window_destroy(s_main_window);
+    tick_timer_service_unsubscribe();
+    window_destroy(s_main_window);
 }
 
 int main(void) {
-  init();
-  app_event_loop();
-  deinit();
+    init();
+    app_event_loop();
+    deinit();
 }
