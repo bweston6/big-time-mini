@@ -32,17 +32,17 @@
                 {
                     "type": "png",
                     "name": "IMAGE_DIAL",
-                    "file": "images/dial.png"
+                    "file": "images/dial-ideal.png"
                 },
                 {
                     "type": "png",
                     "name": "IMAGE_HOUR_HAND",
-                    "file": "images/hour-hand.png"
+                    "file": "images/hour-hand-ideal.png"
                 },
                 {
                     "type": "png",
                     "name": "IMAGE_MINUTE_HAND",
-                    "file": "images/minute-hand.png"
+                    "file": "images/minute-hand-ideal.png"
                 }
             ]
         }
