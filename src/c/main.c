@@ -36,10 +36,10 @@ static void main_window_load(Window *window) {
     GPoint center = grect_center_point(&bounds);
 
     // bitmaps
-    s_background_bitmap = gbitmap_create_with_resource(IMAGE_DIAL);
-    s_hour_hand_bitmap = gbitmap_create_with_resource(IMAGE_HOUR_HAND);
+    s_background_bitmap = gbitmap_create_with_resource(RESOURCE_ID_IMAGE_DIAL);
+    s_hour_hand_bitmap = gbitmap_create_with_resource(RESOURCE_ID_IMAGE_HOUR_HAND);
     s_hour_hand_ic = GPoint(14, 59);
-    s_minute_hand_bitmap = gbitmap_create_with_resource(IMAGE_MINUTE_HAND);
+    s_minute_hand_bitmap = gbitmap_create_with_resource(RESOURCE_ID_IMAGE_MINUTE_HAND);
     s_minute_hand_ic = GPoint(13, 79);
 
     // layers
@@ -64,8 +64,6 @@ static void main_window_unload(Window *window) {
 
 static void init() {
     s_main_window = window_create();
-    window_set_background_color(s_main_window, GColorFromHEX(DIAL));
-
     window_set_window_handlers(s_main_window, (WindowHandlers) {
             .load = main_window_load,
             .unload = main_window_unload
